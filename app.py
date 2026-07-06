@@ -2,120 +2,160 @@ import streamlit as st
 import pandas as pd
 import joblib
 
-# ---------------- PAGE CONFIG ----------------
+# ------------------ PAGE CONFIG ------------------
 st.set_page_config(
-    page_title="🏠 House Rent Prediction",
+    page_title="House Rent Prediction",
     page_icon="🏠",
     layout="wide"
 )
 
-# ---------------- CUSTOM CSS ----------------
+# ------------------ LOAD MODEL ------------------
+@st.cache_resource
+def load_model():
+    return joblib.load("house_rent_prediction.pkl")
+
+model = load_model()
+
+# ------------------ CSS ------------------
 st.markdown("""
 <style>
-
 .stApp{
-    background: linear-gradient(135deg,#0F172A,#1E293B,#2563EB);
+    background: linear-gradient(135deg,#0f172a,#1e3a8a,#2563eb);
 }
-
 .main-title{
     text-align:center;
     color:white;
     font-size:45px;
     font-weight:bold;
 }
-
 .sub-title{
     text-align:center;
     color:#dbeafe;
     font-size:18px;
-    margin-bottom:30px;
+    margin-bottom:20px;
 }
-
-.block{
+div[data-testid="stForm"]{
     background:white;
     padding:25px;
-    border-radius:20px;
-    box-shadow:0px 8px 20px rgba(0,0,0,.25);
+    border-radius:15px;
 }
-
 .result{
-    background:linear-gradient(90deg,#16a34a,#22c55e);
+    background:#16a34a;
     color:white;
-    padding:25px;
-    border-radius:20px;
+    padding:20px;
+    border-radius:15px;
     text-align:center;
-    font-size:34px;
+    font-size:30px;
     font-weight:bold;
 }
-
-footer{
-    visibility:hidden;
-}
-
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------- LOAD MODEL ----------------
-model = joblib.load("house_rent_prediction.pkl")
+# ------------------ TITLE ------------------
+st.markdown("<h1 class='main-title'>🏠 House Rent Prediction</h1>", unsafe_allow_html=True)
+st.markdown("<p class='sub-title'>Predict Monthly House Rent using Machine Learning</p>", unsafe_allow_html=True)
 
-# ---------------- TITLE ----------------
-st.markdown("<div class='main-title'>🏠 House Rent Prediction</div>", unsafe_allow_html=True)
-st.markdown("<div class='sub-title'>Predict house rent using Machine Learning</div>", unsafe_allow_html=True)
+col1, col2, col3 = st.columns(3)
 
-st.markdown("<div class='block'>", unsafe_allow_html=True)
-
-col1, col2 = st.columns(2)
-
-with col1:
-    bhk = st.number_input("🏡 BHK", 1, 10, 2)
-    size = st.number_input("📐 Size (sq ft)", 100, 10000, 1000)
-    bathroom = st.number_input("🚿 Bathrooms", 1, 10, 2)
-    city = st.selectbox(
-        "🌆 City",
-        ["Bangalore","Chennai","Delhi","Hyderabad","Kolkata","Mumbai"]
-    )
-
-with col2:
-    floor = st.text_input("🏢 Floor", "1 out of 3")
-
-    area_type = st.selectbox(
-        "📍 Area Type",
-        ["Super Area","Carpet Area","Built Area"]
-    )
-
-    furnishing = st.selectbox(
-        "🛋 Furnishing Status",
-        ["Unfurnished","Semi-Furnished","Furnished"]
-    )
-
-    tenant = st.selectbox(
-        "👨‍👩‍👧 Tenant Preferred",
-        ["Bachelors","Family","Bachelors/Family"]
-    )
+col1.metric("Dataset", "4746 Houses")
+col2.metric("Model", "Random Forest")
+col3.metric("R² Score", "67.67%")
 
 st.write("")
 
-if st.button("🚀 Predict Rent", use_container_width=True):
+# ------------------ FORM ------------------
+with st.form("predict_form"):
+
+    c1, c2 = st.columns(2)
+
+    with c1:
+        bhk = st.number_input("BHK", 1, 10, 2)
+        size = st.number_input("Size (sq.ft)", 100, 10000, 1000)
+        bathroom = st.number_input("Bathroom", 1, 10, 2)
+        city = st.selectbox(
+            "City",
+            [
+                "Bangalore",
+                "Chennai",
+                "Delhi",
+                "Hyderabad",
+                "Kolkata",
+                "Mumbai"
+            ]
+        )
+
+    with c2:
+
+        floor = st.text_input("Floor", "1 out of 3")
+
+        area_type = st.selectbox(
+            "Area Type",
+            [
+                "Super Area",
+                "Carpet Area",
+                "Built Area"
+            ]
+        )
+
+        furnishing = st.selectbox(
+            "Furnishing Status",
+            [
+                "Unfurnished",
+                "Semi-Furnished",
+                "Furnished"
+            ]
+        )
+
+        tenant = st.selectbox(
+            "Tenant Preferred",
+            [
+                "Bachelors",
+                "Family",
+                "Bachelors/Family"
+            ]
+        )
+
+    submit = st.form_submit_button("🚀 Predict Rent")
+
+# ------------------ PREDICTION ------------------
+
+if submit:
 
     input_df = pd.DataFrame({
-        "BHK":[bhk],
-        "Size":[size],
-        "Floor":[floor],
-        "Area Type":[area_type],
-        "City":[city],
-        "Furnishing Status":[furnishing],
-        "Tenant Preferred":[tenant],
-        "Bathroom":[bathroom]
+        "BHK": pd.Series([bhk], dtype="int64"),
+        "Size": pd.Series([size], dtype="int64"),
+        "Floor": pd.Series([floor], dtype="string"),
+        "Area Type": pd.Series([area_type], dtype="string"),
+        "City": pd.Series([city], dtype="string"),
+        "Furnishing Status": pd.Series([furnishing], dtype="string"),
+        "Tenant Preferred": pd.Series([tenant], dtype="string"),
+        "Bathroom": pd.Series([bathroom], dtype="int64")
     })
 
-    prediction = model.predict(input_df)[0]
+    try:
+        with st.spinner("Predicting..."):
 
-    st.markdown(
-        f"<div class='result'>💰 Estimated Rent<br><br>₹ {prediction:,.0f} / Month</div>",
-        unsafe_allow_html=True
-    )
+            prediction = model.predict(input_df)[0]
 
-st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown(
+            f"""
+            <div class='result'>
+            💰 Estimated Monthly Rent<br><br>
+            ₹ {prediction:,.0f}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
-st.write("")
-st.caption("Made with ❤️ using Streamlit • Scikit-learn • Random Forest")
+    except Exception as e:
+        st.error("Prediction failed.")
+        st.write(e)
+
+        st.subheader("Debug Information")
+
+        st.write(input_df)
+        st.write(input_df.dtypes)
+
+st.divider()
+
+st.caption("Developed by Avanish Mishra ❤️")
